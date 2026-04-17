@@ -106,11 +106,13 @@ app.get('/api/vehicles', async (req, res) => {
   allFeatures.forEach(f => {
     routeColorMap.set(`${f.properties.agencyId}:${f.properties.routeId}`, f.properties.color);
   });
-  rtVehicles.forEach(v => {
-    v.color = routeColorMap.get(`${v.agencyId}:${v.routeId}`) || '#888888';
+  // Filter to rail routes only — drops buses that share the same RT feed
+  const railRtVehicles = rtVehicles.filter(v => routeColorMap.has(`${v.agencyId}:${v.routeId}`));
+  railRtVehicles.forEach(v => {
+    v.color = routeColorMap.get(`${v.agencyId}:${v.routeId}`);
   });
 
-  let vehicles = [...rtVehicles, ...simTagged];
+  let vehicles = [...railRtVehicles, ...simTagged];
   if (agency) vehicles = vehicles.filter(v => v.agencyId === agency);
   if (bbox) {
     const [w, s, e, n] = bbox.split(',').map(Number);

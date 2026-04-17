@@ -4,6 +4,9 @@ const compression = require('compression');
 const AGENCIES = require('./lib/agencies');
 const { loadAgency } = require('./lib/gtfsLoader');
 const { buildShapeData, generateVehicles } = require('./lib/simulator');
+const { fetchRealTimeVehicles } = require('./lib/gtfsRt');
+
+const RT_AGENCIES = new Set(AGENCIES.filter(a => a.gtfsRtUrl).map(a => a.id));
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -76,9 +79,38 @@ app.get('/api/stops', (req, res) => {
   res.json(stops);
 });
 
-app.get('/api/vehicles', (req, res) => {
+app.get('/api/vehicles', async (req, res) => {
   const { agency, bbox } = req.query;
-  let vehicles = generateVehicles(shapesData);
+
+  // Fetch real-time for RT-capable agencies, simulate the rest
+  const rtAgencies = AGENCIES.filter(a => RT_AGENCIES.has(a.id));
+  const rtResults = await Promise.allSettled(rtAgencies.map(a => fetchRealTimeVehicles(a)));
+
+  const rtVehiclesByAgency = new Map();
+  rtResults.forEach((r, i) => {
+    if (r.status === 'fulfilled' && r.value?.length) {
+      rtVehiclesByAgency.set(rtAgencies[i].id, r.value);
+    }
+  });
+
+  // Simulated: only shapes for non-RT agencies (or RT agencies where fetch failed)
+  const simShapes = shapesData.filter(s => !rtVehiclesByAgency.has(s.properties.agencyId));
+  const simVehicles = generateVehicles(simShapes);
+
+  // Merge, tagging sim vehicles explicitly
+  const simTagged = simVehicles.map(v => ({ ...v, realtime: false }));
+  const rtVehicles = [...rtVehiclesByAgency.values()].flat();
+
+  // Apply colour from shapes data for RT vehicles (GTFS-RT doesn't include it)
+  const routeColorMap = new Map();
+  allFeatures.forEach(f => {
+    routeColorMap.set(`${f.properties.agencyId}:${f.properties.routeId}`, f.properties.color);
+  });
+  rtVehicles.forEach(v => {
+    v.color = routeColorMap.get(`${v.agencyId}:${v.routeId}`) || '#888888';
+  });
+
+  let vehicles = [...rtVehicles, ...simTagged];
   if (agency) vehicles = vehicles.filter(v => v.agencyId === agency);
   if (bbox) {
     const [w, s, e, n] = bbox.split(',').map(Number);

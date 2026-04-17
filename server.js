@@ -8,7 +8,7 @@ const { buildShapeData, generateVehicles } = require('./lib/simulator');
 const { fetchRealTimeVehicles } = require('./lib/gtfsRt');
 const { fetchCustomRt } = require('./lib/customRt');
 
-const CUSTOM_RT_IDS = new Set(['septa', 'metro-transit', 'sound-transit', 'nyct-subway']);
+const CUSTOM_RT_IDS = new Set(['septa', 'metro-transit', 'sound-transit', 'nyct-subway', 'cta']);
 const RT_AGENCIES = new Set(AGENCIES.filter(a => a.gtfsRtUrl).map(a => a.id));
 
 const app = express();

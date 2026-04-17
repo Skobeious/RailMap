@@ -8,7 +8,7 @@ const { buildShapeData, generateVehicles } = require('./lib/simulator');
 const { fetchRealTimeVehicles } = require('./lib/gtfsRt');
 const { fetchCustomRt } = require('./lib/customRt');
 
-const CUSTOM_RT_IDS = new Set(['septa', 'metro-transit', 'sound-transit', 'nyct-subway', 'cta', 'amtrak']);
+const CUSTOM_RT_IDS = new Set(['septa', 'metro-transit', 'sound-transit', 'nyct-subway', 'cta', 'amtrak', 'bart']);
 const RT_AGENCIES = new Set(AGENCIES.filter(a => a.gtfsRtUrl).map(a => a.id));
 
 const app = express();
@@ -55,6 +55,7 @@ app.get('/api/agencies', (req, res) => {
     center: a.center,
     zoom: a.zoom,
     loaded: loadedAgencies.includes(a.id),
+    realtime: RT_AGENCIES.has(a.id) || CUSTOM_RT_IDS.has(a.id),
   })));
 });
 
@@ -100,9 +101,15 @@ app.get('/api/vehicles', async (req, res) => {
     routeSlugMap.set(slug, f.properties.routeId);
   });
 
+  // Build BART hex color -> routeId map for ETD API matching
+  const bartColorMap = new Map();
+  allFeatures.filter(f => f.properties.agencyId === 'bart').forEach(f => {
+    if (f.properties.color) bartColorMap.set(f.properties.color.toLowerCase(), f.properties.routeId);
+  });
+
   const [rtResults, customResults] = await Promise.all([
     Promise.allSettled(rtAgencies.map(a => fetchRealTimeVehicles(a))),
-    Promise.allSettled(customAgencies.map(a => fetchCustomRt(a, stopsMap, routeSlugMap))),
+    Promise.allSettled(customAgencies.map(a => fetchCustomRt(a, stopsMap, routeSlugMap, bartColorMap))),
   ]);
 
   const rtVehiclesByAgency = new Map();

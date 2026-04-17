@@ -2,6 +2,7 @@ import { MapContainer, TileLayer, GeoJSON, useMap, useMapEvents } from 'react-le
 import { useState, useEffect, useCallback, useRef } from 'react'
 import TrainMarker from './TrainMarker'
 import StationMarker from './StationMarker'
+import AgencySidebar from './AgencySidebar'
 
 const USA_CENTER = [39.5, -98.35]
 const STATION_ZOOM_THRESHOLD = 11
@@ -63,6 +64,7 @@ function useAnimatedVehicles(rawVehicles) {
 
 function VehicleLayer() {
   const [raw, setRaw] = useState([])
+  const [zoom, setZoom] = useState(5)
   const map = useMap()
 
   const fetch_ = useCallback(() => {
@@ -80,10 +82,13 @@ function VehicleLayer() {
     return () => clearInterval(t)
   }, [fetch_])
 
-  useMapEvents({ moveend: fetch_, zoomend: fetch_ })
+  useMapEvents({
+    moveend: fetch_,
+    zoomend: () => { setZoom(map.getZoom()); fetch_() },
+  })
 
   const vehicles = useAnimatedVehicles(raw)
-  return vehicles.map(v => <TrainMarker key={v.id} vehicle={v} />)
+  return vehicles.map(v => <TrainMarker key={v.id} vehicle={v} zoom={zoom} />)
 }
 
 function StationLayer() {
@@ -106,9 +111,7 @@ function StationLayer() {
   return stops.map(s => <StationMarker key={`${s.agencyId}-${s.id}`} stop={s} />)
 }
 
-export default function MapView({ shapes }) {
-  const shapesRef = useRef(null)
-
+export default function MapView({ shapes, agencies }) {
   return (
     <MapContainer
       center={USA_CENTER}
@@ -132,6 +135,7 @@ export default function MapView({ shapes }) {
       )}
       <StationLayer />
       <VehicleLayer />
+      <AgencySidebar agencies={agencies || []} />
     </MapContainer>
   )
 }

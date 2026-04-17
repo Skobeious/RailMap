@@ -1,7 +1,10 @@
 import { CircleMarker, Tooltip } from 'react-leaflet'
 
-export default function TrainMarker({ vehicle }) {
+export default function TrainMarker({ vehicle, zoom }) {
   const isLive = vehicle.realtime
+  const showLabel = zoom >= 14
+  const label = vehicle.routeName || vehicle.routeId || ''
+
   return (
     <CircleMarker
       center={[vehicle.lat, vehicle.lng]}
@@ -13,14 +16,20 @@ export default function TrainMarker({ vehicle }) {
         weight: isLive ? 2 : 1,
       }}
     >
-      <Tooltip>
-        <strong>{vehicle.routeName || vehicle.routeId}</strong>
-        <br />
-        {vehicle.agencyName}
-        <br />
-        <span style={{ opacity: 0.7, fontSize: '0.7em' }}>
-          {isLive ? '● live' : '◌ simulated'}
-        </span>
+      <Tooltip permanent={showLabel} direction="top" offset={[0, -6]}>
+        {showLabel ? (
+          <span style={{ fontWeight: 600, fontSize: '0.72rem' }}>{label}</span>
+        ) : (
+          <>
+            <strong>{label}</strong>
+            <br />
+            {vehicle.agencyName}
+            <br />
+            <span style={{ opacity: 0.7, fontSize: '0.7em' }}>
+              {isLive ? '● live' : '◌ simulated'}
+            </span>
+          </>
+        )}
       </Tooltip>
     </CircleMarker>
   )

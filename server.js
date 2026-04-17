@@ -7,7 +7,7 @@ const { buildShapeData, generateVehicles } = require('./lib/simulator');
 const { fetchRealTimeVehicles } = require('./lib/gtfsRt');
 const { fetchCustomRt } = require('./lib/customRt');
 
-const CUSTOM_RT_IDS = new Set(['septa', 'metro-transit', 'sound-transit']);
+const CUSTOM_RT_IDS = new Set(['septa', 'metro-transit', 'sound-transit', 'nyct-subway']);
 const RT_AGENCIES = new Set(AGENCIES.filter(a => a.gtfsRtUrl).map(a => a.id));
 
 const app = express();
@@ -88,9 +88,13 @@ app.get('/api/vehicles', async (req, res) => {
   const rtAgencies = AGENCIES.filter(a => RT_AGENCIES.has(a.id));
   const customAgencies = AGENCIES.filter(a => CUSTOM_RT_IDS.has(a.id));
 
+  // Build stop lookup map: "agencyId:stopId" -> {lat, lng}
+  const stopsMap = new Map();
+  allStops.forEach(s => stopsMap.set(`${s.agencyId}:${s.id}`, { lat: s.lat, lng: s.lng }));
+
   const [rtResults, customResults] = await Promise.all([
     Promise.allSettled(rtAgencies.map(a => fetchRealTimeVehicles(a))),
-    Promise.allSettled(customAgencies.map(a => fetchCustomRt(a))),
+    Promise.allSettled(customAgencies.map(a => fetchCustomRt(a, stopsMap))),
   ]);
 
   const rtVehiclesByAgency = new Map();

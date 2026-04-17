@@ -5,7 +5,7 @@ export default function TrainMarker({ vehicle }) {
   return (
     <CircleMarker
       center={[vehicle.lat, vehicle.lng]}
-      radius={isLive ? 9 : 7}
+      radius={isLive ? 5 : 4}
       pathOptions={{
         color: isLive ? '#fff' : 'rgba(255,255,255,0.4)',
         fillColor: vehicle.color || '#888',

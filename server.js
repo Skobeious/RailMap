@@ -22,6 +22,7 @@ let allStops = [];
 let shapesData = [];
 let loadedAgencies = [];
 let isReady = false;
+let rtActiveAgencies = new Set();
 
 async function loadAllAgencies() {
   console.log(`Loading ${AGENCIES.length} agencies…`);
@@ -55,7 +56,7 @@ app.get('/api/agencies', (req, res) => {
     center: a.center,
     zoom: a.zoom,
     loaded: loadedAgencies.includes(a.id),
-    realtime: RT_AGENCIES.has(a.id) || CUSTOM_RT_IDS.has(a.id),
+    realtime: rtActiveAgencies.has(a.id),
   })));
 });
 
@@ -121,6 +122,9 @@ app.get('/api/vehicles', async (req, res) => {
     if (r.status === 'fulfilled' && r.value?.length)
       rtVehiclesByAgency.set(customAgencies[i].id, r.value);
   });
+
+  // Track which agencies are actively returning RT data (used by /api/agencies live badge)
+  rtActiveAgencies = new Set(rtVehiclesByAgency.keys());
 
   // Simulated: only shapes for non-RT agencies (or RT agencies where fetch failed)
   const simShapes = shapesData.filter(s => !rtVehiclesByAgency.has(s.properties.agencyId));

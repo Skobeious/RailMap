@@ -5,7 +5,9 @@ const AGENCIES = require('./lib/agencies');
 const { loadAgency } = require('./lib/gtfsLoader');
 const { buildShapeData, generateVehicles } = require('./lib/simulator');
 const { fetchRealTimeVehicles } = require('./lib/gtfsRt');
+const { fetchCustomRt } = require('./lib/customRt');
 
+const CUSTOM_RT_IDS = new Set(['septa', 'metro-transit', 'sound-transit']);
 const RT_AGENCIES = new Set(AGENCIES.filter(a => a.gtfsRtUrl).map(a => a.id));
 
 const app = express();
@@ -82,15 +84,23 @@ app.get('/api/stops', (req, res) => {
 app.get('/api/vehicles', async (req, res) => {
   const { agency, bbox } = req.query;
 
-  // Fetch real-time for RT-capable agencies, simulate the rest
+  // Fetch real-time: protobuf GTFS-RT feeds + custom JSON adapters
   const rtAgencies = AGENCIES.filter(a => RT_AGENCIES.has(a.id));
-  const rtResults = await Promise.allSettled(rtAgencies.map(a => fetchRealTimeVehicles(a)));
+  const customAgencies = AGENCIES.filter(a => CUSTOM_RT_IDS.has(a.id));
+
+  const [rtResults, customResults] = await Promise.all([
+    Promise.allSettled(rtAgencies.map(a => fetchRealTimeVehicles(a))),
+    Promise.allSettled(customAgencies.map(a => fetchCustomRt(a))),
+  ]);
 
   const rtVehiclesByAgency = new Map();
   rtResults.forEach((r, i) => {
-    if (r.status === 'fulfilled' && r.value?.length) {
+    if (r.status === 'fulfilled' && r.value?.length)
       rtVehiclesByAgency.set(rtAgencies[i].id, r.value);
-    }
+  });
+  customResults.forEach((r, i) => {
+    if (r.status === 'fulfilled' && r.value?.length)
+      rtVehiclesByAgency.set(customAgencies[i].id, r.value);
   });
 
   // Simulated: only shapes for non-RT agencies (or RT agencies where fetch failed)

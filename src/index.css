@@ -1,0 +1,35 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #0d1117;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.loading-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.75);
+  color: #aaa;
+  font-size: 0.75rem;
+  padding: 6px 12px;
+  text-align: center;
+  backdrop-filter: blur(4px);
+}
+
+/* Leaflet overrides */
+.leaflet-container { background: #0d1117; }
+.leaflet-control-attribution { font-size: 10px; opacity: 0.5; }
+.leaflet-tooltip {
+  background: rgba(0,0,0,0.85);
+  border: 1px solid #333;
+  color: #eee;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.leaflet-tooltip::before { display: none; }

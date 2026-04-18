@@ -33,10 +33,10 @@ function useAnimatedVehicles(rawVehicles) {
     startRef.current = performance.now()
     const prev = prevById.current
 
-    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    if (rafRef.current) clearInterval(rafRef.current)
 
-    function tick(now) {
-      const t = Math.min((now - startRef.current) / POLL_MS, 1)
+    function tick() {
+      const t = Math.min((performance.now() - startRef.current) / POLL_MS, 1)
       setDisplayed(targetRef.current.map(v => {
         const p = prev[v.id]
         if (!p || t >= 1) return v
@@ -46,17 +46,18 @@ function useAnimatedVehicles(rawVehicles) {
           lng: p.lng + (v.lng - p.lng) * t,
         }
       }))
-      if (t < 1) rafRef.current = requestAnimationFrame(tick)
+      if (t >= 1) clearInterval(rafRef.current)
     }
 
-    rafRef.current = requestAnimationFrame(tick)
+    tick()
+    rafRef.current = setInterval(tick, 200)
 
     // Update prev positions for next interpolation cycle
     const next = {}
     rawVehicles.forEach(v => { next[v.id] = { lat: v.lat, lng: v.lng } })
     prevById.current = next
 
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+    return () => { if (rafRef.current) clearInterval(rafRef.current) }
   }, [rawVehicles])
 
   return displayed

@@ -3,7 +3,7 @@ import L from 'leaflet'
 
 function createTrainIcon(color, heading, isLive) {
   const c = color || '#888888'
-  const hasDir = heading !== null && heading !== undefined
+  const hasDir = heading !== null && heading !== undefined && !isNaN(heading)
   const opacity = isLive ? 1 : 0.65
   const stroke = isLive ? 'white' : 'rgba(255,255,255,0.4)'
   const strokeW = isLive ? 1.5 : 1

@@ -93,7 +93,7 @@ app.get('/api/vehicles', async (req, res) => {
 
   // Build stop lookup: "agencyId:stopId" -> {lat, lng}
   const stopsMap = new Map();
-  allStops.forEach(s => stopsMap.set(`${s.agencyId}:${s.id}`, { lat: s.lat, lng: s.lng }));
+  allStops.forEach(s => stopsMap.set(`${s.agencyId}:${s.id}`, { lat: s.lat, lng: s.lng, name: s.name }));
 
   // Build Amtrak route slug -> routeId map for name matching
   const routeSlugMap = new Map();

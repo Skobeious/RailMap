@@ -1,10 +1,11 @@
 import { MapContainer, TileLayer, GeoJSON, useMap, useMapEvents } from 'react-leaflet'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import TrainMarker from './TrainMarker'
 import StationMarker from './StationMarker'
 import AgencySidebar from './AgencySidebar'
 
 const USA_CENTER = [39.5, -98.35]
+const SEATTLE_CENTER = [47.606, -122.332]
 const STATION_ZOOM_THRESHOLD = 11
 
 function routeStyle(feature) {
@@ -63,7 +64,18 @@ function useAnimatedVehicles(rawVehicles) {
   return displayed
 }
 
-function VehicleLayer() {
+function MapController({ mode }) {
+  const map = useMap()
+  const firstRender = useRef(true)
+  useEffect(() => {
+    if (firstRender.current) { firstRender.current = false; return }
+    if (mode === 'seattle') map.flyTo(SEATTLE_CENTER, 11, { duration: 1.5 })
+    else map.flyTo(USA_CENTER, 5, { duration: 1.5 })
+  }, [mode, map])
+  return null
+}
+
+function VehicleLayer({ agency }) {
   const [raw, setRaw] = useState([])
   const [zoom, setZoom] = useState(5)
   const map = useMap()
@@ -71,11 +83,12 @@ function VehicleLayer() {
   const fetch_ = useCallback(() => {
     const bounds = map.getBounds()
     const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`
-    fetch(`/api/vehicles?bbox=${bbox}`)
+    const url = agency ? `/api/vehicles?bbox=${bbox}&agency=${agency}` : `/api/vehicles?bbox=${bbox}`
+    fetch(url)
       .then(r => r.json())
       .then(setRaw)
       .catch(console.error)
-  }, [map])
+  }, [map, agency])
 
   useEffect(() => {
     fetch_()
@@ -92,7 +105,7 @@ function VehicleLayer() {
   return vehicles.map(v => <TrainMarker key={v.id} vehicle={v} zoom={zoom} />)
 }
 
-function StationLayer() {
+function StationLayer({ agency }) {
   const [stops, setStops] = useState([])
   const map = useMap()
 
@@ -100,11 +113,12 @@ function StationLayer() {
     if (map.getZoom() < STATION_ZOOM_THRESHOLD) { setStops([]); return; }
     const bounds = map.getBounds()
     const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`
-    fetch(`/api/stops?bbox=${bbox}`)
+    const url = agency ? `/api/stops?bbox=${bbox}&agency=${agency}` : `/api/stops?bbox=${bbox}`
+    fetch(url)
       .then(r => r.json())
       .then(setStops)
       .catch(console.error)
-  }, [map])
+  }, [map, agency])
 
   useMapEvents({ zoomend: load, moveend: load })
   useEffect(load, [load])
@@ -112,14 +126,24 @@ function StationLayer() {
   return stops.map(s => <StationMarker key={`${s.agencyId}-${s.id}`} stop={s} />)
 }
 
-export default function MapView({ shapes, agencies }) {
+export default function MapView({ shapes, agencies, mode }) {
+  const agencyFilter = mode === 'seattle' ? 'sound-transit' : null
+  const initialCenter = mode === 'seattle' ? SEATTLE_CENTER : USA_CENTER
+  const initialZoom = mode === 'seattle' ? 11 : 5
+
+  const filteredShapes = useMemo(() => {
+    if (!shapes) return null
+    if (mode !== 'seattle') return shapes
+    return { ...shapes, features: shapes.features.filter(f => f.properties.agencyId === 'sound-transit') }
+  }, [shapes, mode])
+
   return (
     <MapContainer
-      center={USA_CENTER}
-      zoom={5}
+      center={initialCenter}
+      zoom={initialZoom}
       minZoom={3}
       maxZoom={16}
-      style={{ height: '100vh', width: '100vw' }}
+      style={{ height: 'calc(100vh - 48px)', width: '100vw', marginTop: '48px' }}
       zoomControl={true}
     >
       <TileLayer
@@ -127,16 +151,17 @@ export default function MapView({ shapes, agencies }) {
         attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://www.openstreetmap.org/">OSM</a>'
         maxZoom={20}
       />
-      {shapes && shapes.features?.length > 0 && (
+      <MapController mode={mode} />
+      {filteredShapes && filteredShapes.features?.length > 0 && (
         <GeoJSON
-          key={shapes.features.length}
-          data={shapes}
+          key={`${filteredShapes.features.length}-${mode}`}
+          data={filteredShapes}
           style={routeStyle}
         />
       )}
-      <StationLayer />
-      <VehicleLayer />
-      <AgencySidebar agencies={agencies || []} />
+      <StationLayer agency={agencyFilter} />
+      <VehicleLayer agency={agencyFilter} />
+      {mode === 'usa' && <AgencySidebar agencies={agencies || []} />}
     </MapContainer>
   )
 }
